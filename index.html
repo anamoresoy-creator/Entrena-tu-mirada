@@ -142,6 +142,29 @@
       return STREAK_LEVELS.find(l => l.days > days);
     }
 
+    function CircularProgress({ done, total }) {
+      const r = 54;
+      const circ = 2 * Math.PI * r;
+      const pct = done / total;
+      const offset = circ * (1 - pct);
+      return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", width:140, height:140, margin:"0 auto 8px" }}>
+          <svg width="140" height="140" style={{ position:"absolute", top:0, left:0, transform:"rotate(-90deg)" }}>
+            <circle cx="70" cy="70" r={r} fill="none" stroke="#e8e8e8" strokeWidth="10" />
+            <circle cx="70" cy="70" r={r} fill="none" stroke="#1A1A2E" strokeWidth="10"
+              strokeDasharray={circ} strokeDashoffset={offset}
+              strokeLinecap="round"
+              style={{ transition:"stroke-dashoffset 0.6s ease" }}
+            />
+          </svg>
+          <div style={{ textAlign:"center", zIndex:1 }}>
+            <p style={{ fontSize:28, fontWeight:900, color:"#1A1A2E", margin:0, lineHeight:1 }}>{done}</p>
+            <p style={{ fontSize:11, color:"#888", margin:"2px 0 0" }}>de {total}</p>
+          </div>
+        </div>
+      );
+    }
+
     function BottomNav({ active, setActive }) {
       const tabs = [
         { id: "home", icon: "🏠", label: "Inicio" },
@@ -163,15 +186,30 @@
 
     function HomeScreen({ progress, streak, setActive }) {
       const total = 60, done = Object.keys(progress).length;
-      const pct = Math.round((done/total)*100);
       const streakLevel = getStreakLevel(streak);
       const nextStreak = getNextStreak(streak);
       return (
         <div style={{ padding:"60px 20px 90px" }}>
-          <div style={{ marginBottom:28 }}>
+          <div style={{ marginBottom:24 }}>
             <p style={{ fontSize:12, letterSpacing:"0.15em", color:"#888", textTransform:"uppercase", margin:0 }}>PhotoGym</p>
             <h1 style={{ fontSize:28, fontWeight:800, color:"#1A1A2E", margin:"4px 0 0", lineHeight:1.2 }}>Entrena<br/>tu mirada.</h1>
           </div>
+
+          {/* Circular progress */}
+          <div style={{ background:"#F7F7F7", borderRadius:20, padding:"24px 20px", marginBottom:16, textAlign:"center" }}>
+            <CircularProgress done={done} total={total} />
+            <p style={{ fontSize:13, fontWeight:700, color:"#1A1A2E", margin:"4px 0 2px" }}>Misiones completadas</p>
+            <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:12 }}>
+              {["bronze","silver","gold"].map(m => (
+                <div key={m} style={{ textAlign:"center" }}>
+                  <span style={{ fontSize:18 }}>{MEDAL[m]}</span>
+                  <p style={{ fontSize:11, color:"#888", margin:"2px 0 0" }}>{Object.values(progress).filter(v=>v===m).length}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Streak */}
           <div style={{ background:"#1A1A2E", borderRadius:16, padding:"20px 22px", marginBottom:16, color:"#fff" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
               <div>
@@ -187,23 +225,7 @@
               </div>
             </div>
           </div>
-          <div style={{ background:"#F7F7F7", borderRadius:16, padding:"18px 20px", marginBottom:16 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-              <span style={{ fontSize:13, fontWeight:600, color:"#1A1A2E" }}>Misiones completadas</span>
-              <span style={{ fontSize:13, fontWeight:700, color:"#1A1A2E" }}>{done}/60</span>
-            </div>
-            <div style={{ background:"#e0e0e0", borderRadius:8, height:8 }}>
-              <div style={{ background:"#1A1A2E", borderRadius:8, height:8, width:`${pct}%` }} />
-            </div>
-            <div style={{ display:"flex", gap:16, marginTop:14 }}>
-              {["bronze","silver","gold"].map(m => (
-                <div key={m} style={{ textAlign:"center" }}>
-                  <span style={{ fontSize:20 }}>{MEDAL[m]}</span>
-                  <p style={{ fontSize:11, color:"#888", margin:"2px 0 0" }}>{Object.values(progress).filter(v=>v===m).length}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+
           <p style={{ fontSize:13, fontWeight:700, color:"#1A1A2E", margin:"20px 0 10px" }}>Mundos</p>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {WORLDS.map(w => {
@@ -386,11 +408,8 @@
           <p style={{ fontSize:12, letterSpacing:"0.15em", color:"#888", textTransform:"uppercase", margin:"0 0 4px" }}>Tu evolución</p>
           <h2 style={{ fontSize:24, fontWeight:800, color:"#1A1A2E", margin:"0 0 24px" }}>Progreso</h2>
           <div style={{ background:"#1A1A2E", borderRadius:18, padding:"24px", color:"#fff", marginBottom:16, textAlign:"center" }}>
-            <p style={{ fontSize:56, fontWeight:900, margin:0, lineHeight:1 }}>{done}</p>
-            <p style={{ fontSize:13, color:"#aaa", margin:"4px 0 0" }}>de 60 misiones completadas</p>
-            <div style={{ background:"#ffffff20", borderRadius:8, height:6, margin:"16px 0 0" }}>
-              <div style={{ background:"#fff", borderRadius:8, height:6, width:`${(done/60)*100}%` }} />
-            </div>
+            <CircularProgress done={done} total={60} />
+            <p style={{ fontSize:13, color:"#aaa", margin:"4px 0 0" }}>misiones completadas</p>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:16 }}>
             {["bronze","silver","gold"].map(m => (
@@ -438,9 +457,26 @@
 
     function App() {
       const [active, setActive] = useState("home");
-      const [progress, setProgress] = useState({});
-      const [streak] = useState(7);
+      const [progress, setProgress] = useState(() => {
+        try {
+          const saved = localStorage.getItem("photogym_progress");
+          return saved ? JSON.parse(saved) : {};
+        } catch { return {}; }
+      });
+      const [streak] = useState(() => {
+        try {
+          return parseInt(localStorage.getItem("photogym_streak") || "0");
+        } catch { return 0; }
+      });
+
+      useEffect(() => {
+        try {
+          localStorage.setItem("photogym_progress", JSON.stringify(progress));
+        } catch {}
+      }, [progress]);
+
       const handleSetActive = tab => { setActive(tab); };
+
       return (
         <div style={{ maxWidth:390, margin:"0 auto", minHeight:"100vh", background:"#fff", position:"relative", fontFamily:"'Inter', system-ui, sans-serif", overflowX:"hidden" }}>
           {active === "home" && <HomeScreen progress={progress} streak={streak} setActive={handleSetActive} />}
@@ -456,5 +492,4 @@
   </script>
 </body>
 </html>
-</body>
 </html>
